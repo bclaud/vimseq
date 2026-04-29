@@ -1,0 +1,100 @@
+-- Tests for the wiki link parser
+-- Run with: nvim --headless -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua'}"
+
+describe("wikilink parser", function()
+  local wikilink = require("vimseq.parser.wikilink")
+
+  describe("parse_link", function()
+    it("parses a simple link", function()
+      local target, display = wikilink.parse_link("My Note")
+      assert.equals("My Note", target)
+      assert.is_nil(display)
+    end)
+
+    it("parses a link with alias", function()
+      local target, display = wikilink.parse_link("My Note|custom text")
+      assert.equals("My Note", target)
+      assert.equals("custom text", display)
+    end)
+
+    it("trims whitespace", function()
+      local target, display = wikilink.parse_link("  My Note  ")
+      assert.equals("My Note", target)
+      assert.is_nil(display)
+    end)
+
+    it("trims whitespace with alias", function()
+      local target, display = wikilink.parse_link(" My Note | custom text ")
+      assert.equals("My Note", target)
+      assert.equals("custom text", display)
+    end)
+  end)
+
+  describe("extract_from_line", function()
+    it("extracts a single link", function()
+      local links = wikilink.extract_from_line("See [[My Note]] for details")
+      assert.equals(1, #links)
+      assert.equals("My Note", links[1].target)
+      assert.is_nil(links[1].display)
+    end)
+
+    it("extracts multiple links", function()
+      local links = wikilink.extract_from_line("See [[Note A]] and [[Note B]]")
+      assert.equals(2, #links)
+      assert.equals("Note A", links[1].target)
+      assert.equals("Note B", links[2].target)
+    end)
+
+    it("extracts aliased links", function()
+      local links = wikilink.extract_from_line("See [[My Note|this note]]")
+      assert.equals(1, #links)
+      assert.equals("My Note", links[1].target)
+      assert.equals("this note", links[1].display)
+    end)
+
+    it("returns empty for no links", function()
+      local links = wikilink.extract_from_line("No links here")
+      assert.equals(0, #links)
+    end)
+
+    it("provides correct column positions", function()
+      local links = wikilink.extract_from_line("See [[My Note]] ok")
+      assert.equals(5, links[1].col_start)  -- position of first [
+      assert.equals(15, links[1].col_end)    -- position of last ]
+    end)
+  end)
+
+  describe("extract_from_content", function()
+    it("extracts links across multiple lines", function()
+      local content = "# Title\n\nSee [[Note A]]\n\nAlso [[Note B|alias]]"
+      local links = wikilink.extract_from_content(content)
+      assert.equals(2, #links)
+      assert.equals("Note A", links[1].target)
+      assert.equals(3, links[1].line_number)
+      assert.equals("Note B", links[2].target)
+      assert.equals("alias", links[2].display)
+      assert.equals(5, links[2].line_number)
+    end)
+  end)
+
+  describe("extract_tags", function()
+    it("extracts simple tags", function()
+      local tags = wikilink.extract_tags("Some text #tag1 and #tag2")
+      assert.equals(2, #tags)
+      assert.equals("tag1", tags[1])
+      assert.equals("tag2", tags[2])
+    end)
+
+    it("deduplicates tags", function()
+      local tags = wikilink.extract_tags("#tag1 some text #tag1")
+      assert.equals(1, #tags)
+    end)
+
+    it("handles hyphenated tags", function()
+      local tags = wikilink.extract_tags("#my-tag #another_tag")
+      assert.equals(2, #tags)
+      assert.equals("my-tag", tags[1])
+      assert.equals("another_tag", tags[2])
+    end)
+  end)
+end)
