@@ -53,6 +53,11 @@ function M.setup()
     vim.notify("VimSeq: vault re-indexed", vim.log.levels.INFO)
   end, { desc = "VimSeq: force full vault re-index" })
 
+  vim.api.nvim_create_user_command("VimSeqReset", function()
+    require("vimseq.db").reset()
+    vim.notify("VimSeq: database reset and re-indexed", vim.log.levels.INFO)
+  end, { desc = "VimSeq: delete database, recreate schema, and re-index vault" })
+
   vim.api.nvim_create_user_command("VimSeqPasteImage", function()
     require("vimseq.ui.image").paste_image()
   end, { desc = "VimSeq: paste image from clipboard" })

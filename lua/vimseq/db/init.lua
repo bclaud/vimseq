@@ -57,6 +57,28 @@ function M.close()
   end
 end
 
+--- Reset the database: close, delete the file, reinitialize, and full re-sync
+function M.reset()
+  local config = require("vimseq.config")
+  local cfg = config.get()
+  local db_path = cfg.db_path
+
+  -- Close the existing connection
+  M.close()
+
+  -- Delete the database file
+  os.remove(db_path)
+  -- Also remove WAL/SHM files that SQLite may leave behind
+  os.remove(db_path .. "-wal")
+  os.remove(db_path .. "-shm")
+
+  -- Reinitialize schema
+  M.setup(db_path)
+
+  -- Full re-sync
+  require("vimseq.db.sync").full_sync()
+end
+
 -- ============================================================
 -- Note CRUD operations
 -- ============================================================
@@ -152,8 +174,14 @@ function M.insert_link(source_id, target_title, line_number, display_text)
   local target_id = target and target.id or nil
 
   db:eval(
-    "INSERT INTO links (source_id, target_title, target_id, line_number, display_text) VALUES (?, ?, ?, ?, ?)",
-    { source_id, target_title, target_id, line_number, display_text }
+    "INSERT INTO links (source_id, target_title, target_id, line_number, display_text) VALUES (:source_id, :target_title, :target_id, :line_number, :display_text)",
+    {
+      source_id = source_id,
+      target_title = target_title,
+      target_id = target_id,
+      line_number = line_number,
+      display_text = display_text,
+    }
   )
 end
 
