@@ -32,9 +32,12 @@ function M.setup(db_path)
   M._db:eval("PRAGMA journal_mode=WAL")
   M._db:eval("PRAGMA foreign_keys=ON")
 
-  -- Create tables
+  -- Create tables (each statement executed individually; sqlite.lua
+  -- only supports one statement per eval() call)
   local schema = require("vimseq.db.schema")
-  M._db:eval(schema.create_tables)
+  for _, stmt in ipairs(schema.create_tables) do
+    M._db:eval(stmt)
+  end
 end
 
 --- Get the database handle (errors if not initialized)
